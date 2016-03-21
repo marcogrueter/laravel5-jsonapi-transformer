@@ -82,18 +82,27 @@ trait EloquentHelper
         $requestFilters = RequestFactory::create()->getFilters();
         $filters = [];
 
-        // prepare filters
+        // normalize filters to:
+        // ['model'] => [
+        //      field => value,
+        //      field => value
+        // ],
+        // ['othermodel'] => [
+        //      field => value
+        // ]
         foreach($requestFilters as $key => $value)
         {
             // index 0: model
             // index 1: field
             $field = explode('.', $key);
 
+            // if there is no model name included, we will put the filter on the current model
             if( ! isset($field[1]) ) {
                 $field[1] = $field[0];
                 $field[0] = $modelClass;
             }
 
+            // there could be multiple filters, so put this in an array
             if( ! isset($filters[$field[0]]) ) {
                 $filters[$field[0]] = [];
             }
@@ -101,17 +110,21 @@ trait EloquentHelper
             $filters[$field[0]][$field[1]] = $value;
         }
 
+        // if we have any filters
         if (!empty($filters)) {
-            foreach ($filters as $table => $fields) {
+            // go on and apply them
+            foreach ($filters as $modelToFilter => $fields) {
                 foreach($fields as $field => $value)
                 {
-                    if($table != $modelClass)
-                    {
+                    // if the modelToFilter is not the same as the model this query originates on...
+                    if($modelToFilter != $modelClass) {
+                        // .. we're going to use whereHas
                         $builder->whereHas($table, function($query) use($field, $value) {
                             $query->where($field, '=', $value);
                         });
                     }
                     else {
+                        // .. else we will query the originatin model
                         $builder->where($field, '=', $value);
                     }
                 }
