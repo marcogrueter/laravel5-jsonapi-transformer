@@ -30,6 +30,8 @@ trait EloquentHelper
     {
         // get the selected columns - is either an array of field names or '*'
         $columns = self::columns($serializer, RequestFactory::create()->getFields()->get());
+        // apply filtering      +        // get the selected columns - is either an array of field names or '*'
+        self::filter($serializer, $builder, $builder->getModel());
         // apply sorting
         self::sort($serializer, $builder, $builder->getModel());
         // apply pagination
@@ -81,6 +83,53 @@ trait EloquentHelper
             }
         }
 
+        return $builder;
+    }
+
+
+    /**
+     * @param JsonApiSerializer $serializer
+     * @param Builder           $builder
+     * @param Model             $model
+     *
+     * @return Builder
+     */
+    protected static function filter(JsonApiSerializer $serializer, Builder $builder, Model $model)
+    {
+        $modelClass = strtolower(get_class($model));
+        $requestFilters = RequestFactory::create()->getFilters();
+        $filters = [];
+        // prepare filters
+        foreach($requestFilters as $key => $value)
+        {
+            // index 0: model
+            // index 1: field
+            $field = explode('.', $key);
+            if( ! isset($field[1]) ) {
+                $field[1] = $field[0];
+                $field[0] = $modelClass;
+            }
+            if( ! isset($filters[$field[0]]) ) {
+                $filters[$field[0]] = [];
+            }
+            $filters[$field[0]][$field[1]] = $value;
+        }
+        if (!empty($filters)) {
+            foreach ($filters as $table => $fields) {
+                foreach($fields as $field => $value)
+                {
+                    if($table != $modelClass)
+                    {
+                        $builder->whereHas($table, function($query) use($field, $value) {
+                            $query->where($field, '=', $value);
+                        });
+                    }
+                    else {
+                        $builder->where($field, '=', $value);
+                    }
+                }
+            }
+        }
         return $builder;
     }
 

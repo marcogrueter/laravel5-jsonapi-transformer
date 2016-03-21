@@ -41,6 +41,16 @@ class JsonApiControllerTest extends LaravelTestCase
         $this->assertContains('&fields[employee]=company,first_name', $response->getContent());
     }
 
+    public function testListActionCanFilterByFieldAndValue()
+    {
+        $this->call('GET', 'http://localhost/employees?filter[first_name]=Nil');
+        $response = $this->response;
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('application/vnd.api+json', $response->headers->get('Content-type'));
+        $this->assertContains('&filter[first_name]=Nil', $response->getContent());
+    }
+
     public function testListAction()
     {
         $response = $this->call('GET', 'http://localhost/employees');
