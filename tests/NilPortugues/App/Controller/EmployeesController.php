@@ -109,7 +109,7 @@ class EmployeesController extends JsonApiController
         };
 
         $results = function () use ($id) {
-            return EloquentHelper::paginate(
+            return EloquentHelper::createQuery(
                 $this->serializer,
                 Orders::query()->where('employee_id', '=', $id)
             )->get();
