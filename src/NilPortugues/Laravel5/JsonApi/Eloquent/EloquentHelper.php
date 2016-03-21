@@ -26,10 +26,26 @@ trait EloquentHelper
      *
      * @return Builder
      */
+    public static function createQuery(JsonApiSerializer $serializer, Builder $builder)
+    {
+        // apply filtering
+        self::filter($serializer, $builder, $builder->getModel());
+        // apply sorting
+        self::sort($serializer, $builder, $builder->getModel());
+        // apply pagination
+        self::paginate($serializer, $builder);
+
+        return $builder;
+    }
+
+    /**
+     * @param JsonApiSerializer $serializer
+     * @param Builder           $builder
+     *
+     * @return Builder
+     */
     public static function paginate(JsonApiSerializer $serializer, Builder $builder)
     {
-        self::sort($serializer, $builder, $builder->getModel());
-
         $request = RequestFactory::create();
 
         $builder->paginate(
@@ -62,6 +78,58 @@ trait EloquentHelper
 
             foreach ($sorts as $field => $direction) {
                 $builder->orderBy($field, ($direction === 'ascending') ? 'ASC' : 'DESC');
+            }
+        }
+
+        return $builder;
+    }
+
+    /**
+     * @param JsonApiSerializer $serializer
+     * @param Builder           $builder
+     * @param Model             $model
+     *
+     * @return Builder
+     */
+    protected static function filter(JsonApiSerializer $serializer, Builder $builder, Model $model)
+    {
+        $modelClass = strtolower(get_class($model));
+        $requestFilters = RequestFactory::create()->getFilters();
+        $filters = [];
+
+        // prepare filters
+        foreach($requestFilters as $key => $value)
+        {
+            // index 0: model
+            // index 1: field
+            $field = explode('.', $key);
+
+            if( ! isset($field[1]) ) {
+                $field[1] = $field[0];
+                $field[0] = $modelClass;
+            }
+
+            if( ! isset($filters[$field[0]]) ) {
+                $filters[$field[0]] = [];
+            }
+
+            $filters[$field[0]][$field[1]] = $value;
+        }
+
+        if (!empty($filters)) {
+            foreach ($filters as $table => $fields) {
+                foreach($fields as $field => $value)
+                {
+                    if($table != $modelClass)
+                    {
+                        $builder->whereHas($table, function($query) use($field, $value) {
+                            $query->where($field, '=', $value);
+                        });
+                    }
+                    else {
+                        $builder->where($field, '=', $value);
+                    }
+                }
             }
         }
 

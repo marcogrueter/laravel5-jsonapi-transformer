@@ -10,7 +10,7 @@
 
 namespace NilPortugues\Laravel5\JsonApi\Controller;
 
-use Illuminate\Container\Container;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use NilPortugues\Api\JsonApi\Http\Factory\RequestFactory;
@@ -68,22 +68,16 @@ trait JsonApiTrait
 
         $resource = new ListResource($this->serializer, $page, $fields, $sorting, $included, $filters);
 
-        $totalAmount = $this->totalAmountResourceCallable();
-        $results = $this->listResourceCallable();
+        // get the query for the results and total
+        $query = EloquentHelper::createQuery($this->serializer, $this->getDataModel()->query());
+        // supply the query so everyone can get the corrects results
+        $totalAmount = $this->totalAmountResourceCallable($query);
+        $results = $this->listResourceCallable($query);
 
         $controllerAction = '\\'.get_called_class().'@index';
-        $uri = $this->uriGenerator($controllerAction);
+        $uri = action($controllerAction, []);
 
         return $this->addHeaders($resource->get($totalAmount, $results, $uri, get_class($this->getDataModel())));
-    }
-
-    /**
-     * @param $controllerAction
-     * @return mixed
-     */
-    protected function uriGenerator($controllerAction)
-    {
-        return Container::getInstance()->make('url')->action($controllerAction, [], true);
     }
 
     /**
@@ -92,12 +86,11 @@ trait JsonApiTrait
      * @return callable
      * @codeCoverageIgnore
      */
-    protected function totalAmountResourceCallable()
+    protected function totalAmountResourceCallable(Builder $query)
     {
-        return function () {
+        return function () use($query) {
             $idKey = $this->getDataModel()->getKeyName();
-
-            return $this->getDataModel()->query()->get([$idKey])->count();
+            return $query->get([$idKey])->count();
         };
     }
 
@@ -114,10 +107,10 @@ trait JsonApiTrait
      * @return callable
      * @codeCoverageIgnore
      */
-    protected function listResourceCallable()
+    protected function listResourceCallable(Builder $query)
     {
-        return function () {
-            return EloquentHelper::paginate($this->serializer, $this->getDataModel()->query())->get();
+        return function () use($query) {
+            return $query->get();
         };
     }
 
