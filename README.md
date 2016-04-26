@@ -378,7 +378,7 @@ class OrdersTransformer implements JsonApiMapping
     {
         return [
             'self'     => ['name' => 'orders.show', 'as_id' => 'id'],
-            'employee' => ['name' => 'employees.get', 'as_id' => 'employee_id'],
+            'employee' => ['name' => 'employees.show', 'as_id' => 'employee_id'],
         ];
     }
     /**
@@ -1354,7 +1354,7 @@ class EmployeesController extends JsonApiController
 }    
 ```
 
-Now all supported actions will include the addded custom headers.
+Now all supported actions will include the added custom headers.
 
 <br>
 
